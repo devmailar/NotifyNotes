@@ -7,19 +7,18 @@ namespace NotifyNotes
         static void Main()
         {
             Dictionary<int, Note> notes = LoadNotesFromFile();
-            while (true)
+            bool isReading = false;
+
+            while (!isReading)
             {
                 Console.WriteLine("_  _ ____ ___ _ ____ _   _ _  _ ____ ___ ____ ____ ");
                 Console.WriteLine("|\\ | |  |  |  | |___  \\_/  |\\ | |  |  |  |___ [__  ");
                 Console.WriteLine("| \\| |__|  |  | |      |   | \\| |__|  |  |___ ___] ");
                 Console.WriteLine();
-                Console.WriteLine();
 
                 PrintNotes(notes);
                 Console.WriteLine();
-                Console.WriteLine();
-                Console.WriteLine();
-                PrintCommands(notes);
+                isReading = PrintCommands(notes);
             }
         }
 
@@ -29,25 +28,68 @@ namespace NotifyNotes
             {
                 string truncatedNote = note.Value.NoteText.Length > 30 ? string.Concat(note.Value.NoteText.AsSpan(0, 30), "...") : note.Value.NoteText;
 
-                Console.WriteLine("{0,-10} {1,-36} {2}", note.Key, truncatedNote, note.Value.Date);
+                Console.WriteLine("[{0}] {1,-33} [{2}]", note.Key, truncatedNote, note.Value.Date);
             }
         }
 
-        static void PrintCommands(Dictionary<int, Note> notes)
+        static bool PrintCommands(Dictionary<int, Note> notes)
         {
             Console.WriteLine("Controls");
-            Console.WriteLine(new string('-', 32));
-            Console.WriteLine(":create || Creates new note");
-            Console.WriteLine(":update || Updates existing note");
-            Console.WriteLine(":delete || Deletes note");
-            Console.WriteLine(new string('-', 32));
+            Console.WriteLine(new string('-', 60));
+            Console.WriteLine(":read   || read note");
+            Console.WriteLine(":create || create new note");
+            Console.WriteLine(":update || update existing note");
+            Console.WriteLine(":delete || delete note");
+            Console.WriteLine(new string('-', 60));
             Console.Write(":");
             string? command = Console.ReadLine();
 
-            if (command == "create")
+            if (command == null)
             {
-                Console.Write("Note: ");
-                string? newNote = Console.ReadLine() ?? throw new ArgumentNullException(command);
+                throw new Exception(command);
+            }
+
+            string[] commandParts = command.Split(' ');
+
+            if (command.StartsWith("read"))
+            {
+                if (commandParts.Length < 2)
+                {
+                    Console.Write("ID: ");
+                    commandParts = ["read", Console.ReadLine() ?? throw new ArgumentNullException(command)];
+                }
+
+                string noteId = commandParts[1];
+
+                if (int.TryParse(noteId, out int id) && notes.TryGetValue(id, out Note? note))
+                {
+                    Console.ForegroundColor = ConsoleColor.Green;
+                    Console.Clear();
+                    Console.WriteLine($"{note.NoteText}");
+                    Console.WriteLine();
+                    Console.WriteLine($"{note.Date}");
+                    Console.WriteLine();
+                    Console.WriteLine("Press any key to return to the main menu...");
+                    Console.ReadKey();
+                    Console.ResetColor();
+                    Console.Clear();
+                    return false;
+                }
+                else
+                {
+                    Console.WriteLine("Invalid ID or note not found.");
+                    Console.Clear();
+                }
+            }
+            else if (command.StartsWith("create"))
+            {
+                if (commandParts.Length < 2)
+                {
+                    Console.Write("Note: ");
+                    commandParts = ["create", Console.ReadLine() ?? throw new ArgumentNullException(command)];
+                }
+
+                string noteText = commandParts[1];
 
                 Random random = new();
                 int randomId = random.Next(100, 1000);
@@ -57,14 +99,19 @@ namespace NotifyNotes
                     randomId = random.Next(100, 1000);
                 }
 
-                notes.Add(randomId, new Note(newNote));
+                notes.Add(randomId, new Note(noteText));
                 SaveNotesToFile(notes);
                 Console.Clear();
             }
-            else if (command == "delete")
+            else if (command.StartsWith("delete"))
             {
-                Console.Write("ID: ");
-                string? noteId = Console.ReadLine() ?? throw new ArgumentNullException(command);
+                if (commandParts.Length < 2)
+                {
+                    Console.Write("ID: ");
+                    commandParts = ["delete", Console.ReadLine() ?? throw new ArgumentNullException(command)];
+                }
+
+                string noteId = commandParts[1];
 
                 if (int.TryParse(noteId, out int id) && notes.ContainsKey(id))
                 {
@@ -86,6 +133,8 @@ namespace NotifyNotes
             {
                 Console.Clear();
             }
+
+            return false;
         }
 
         static void SaveNotesToFile(Dictionary<int, Note> notes)
