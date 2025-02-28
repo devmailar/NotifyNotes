@@ -24,7 +24,7 @@ namespace NotifyNotes
 
         static void PrintNotes(Dictionary<int, Note> notes)
         {
-            foreach (var note in notes)
+            foreach (var note in notes.OrderByDescending(note => note.Value.Date))
             {
                 string truncatedNote = note.Value.NoteText.Length > 30 ? string.Concat(note.Value.NoteText.AsSpan(0, 30), "...") : note.Value.NoteText;
 
