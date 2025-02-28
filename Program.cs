@@ -1,4 +1,5 @@
-﻿using System.Text.Json;
+﻿using System.Text;
+using System.Text.Json;
 
 namespace NotifyNotes
 {
@@ -56,7 +57,7 @@ namespace NotifyNotes
                 if (commandParts.Length < 2)
                 {
                     Console.Write("ID: ");
-                    commandParts = ["read", Console.ReadLine() ?? throw new ArgumentNullException(command)];
+                    commandParts = new string[] { "read", Console.ReadLine() ?? throw new ArgumentNullException(command) };
                 }
 
                 string noteId = commandParts[1];
@@ -86,7 +87,7 @@ namespace NotifyNotes
                 if (commandParts.Length < 2)
                 {
                     Console.Write("Note: ");
-                    commandParts = ["create", Console.ReadLine() ?? throw new ArgumentNullException(command)];
+                    commandParts = new string[] { "create", Console.ReadLine() ?? throw new ArgumentNullException(command) };
                 }
 
                 string noteText = string.Join(' ', commandParts.Skip(1));
@@ -105,12 +106,44 @@ namespace NotifyNotes
                 SaveNotesToFile(notes);
                 Console.Clear();
             }
+            else if (command.StartsWith("update"))
+            {
+                if (commandParts.Length < 2)
+                {
+                    Console.Write("ID: ");
+                    commandParts = new string[] { "update", Console.ReadLine() ?? throw new ArgumentNullException(command) };
+                }
+
+                string noteId = commandParts[1];
+
+                if (int.TryParse(noteId, out int id) && notes.TryGetValue(id, out Note? note))
+                {
+                    Console.ForegroundColor = ConsoleColor.Green;
+                    Console.Clear();
+                    Console.WriteLine($"{note.NoteText}");
+                    Console.WriteLine();
+                    Console.WriteLine($"{note.Date}");
+                    Console.WriteLine();
+                    Console.WriteLine("Enter new text for the note:");
+                    Console.Write("> ");
+                    string newNoteText = ReadLineWithDefault(note.NoteText) ?? throw new ArgumentNullException("newNoteText");
+                    note.UpdateNoteText(newNoteText);
+                    SaveNotesToFile(notes);
+                    Console.ResetColor();
+                    Console.Clear();
+                }
+                else
+                {
+                    Console.WriteLine("Invalid ID or note not found.");
+                    Console.Clear();
+                }
+            }
             else if (command.StartsWith("delete"))
             {
                 if (commandParts.Length < 2)
                 {
                     Console.Write("ID: ");
-                    commandParts = ["delete", Console.ReadLine() ?? throw new ArgumentNullException(command)];
+                    commandParts = new string[] { "delete", Console.ReadLine() ?? throw new ArgumentNullException(command) };
                 }
 
                 string noteId = commandParts[1];
@@ -149,18 +182,97 @@ namespace NotifyNotes
         {
             if (!File.Exists("notes.json"))
             {
-                return [];
+                return new Dictionary<int, Note>();
             }
 
             string json = File.ReadAllText("notes.json");
-            return JsonSerializer.Deserialize<Dictionary<int, Note>>(json) ?? [];
+            return JsonSerializer.Deserialize<Dictionary<int, Note>>(json) ?? new Dictionary<int, Note>();
+        }
+
+        static string? ReadLineWithDefault(string defaultText)
+        {
+            var buffer = new StringBuilder(defaultText);
+            int cursorPosition = defaultText.Length;
+            Console.Write(defaultText);
+
+            while (true)
+            {
+                var keyInfo = Console.ReadKey(intercept: true);
+
+                if (keyInfo.Key == ConsoleKey.Enter)
+                {
+                    Console.WriteLine();
+                    return buffer.ToString();
+                }
+                else if (keyInfo.Key == ConsoleKey.Backspace)
+                {
+                    if (cursorPosition > 0)
+                    {
+                        buffer.Remove(cursorPosition - 1, 1);
+                        cursorPosition--;
+                        Console.SetCursorPosition(0, Console.CursorTop);
+                        Console.Write(buffer.ToString() + " ");
+                        Console.SetCursorPosition(cursorPosition, Console.CursorTop);
+                    }
+                }
+                else if (keyInfo.Key == ConsoleKey.Delete)
+                {
+                    if (cursorPosition < buffer.Length)
+                    {
+                        buffer.Remove(cursorPosition, 1);
+                        Console.SetCursorPosition(0, Console.CursorTop);
+                        Console.Write(buffer.ToString() + " ");
+                        Console.SetCursorPosition(cursorPosition, Console.CursorTop);
+                    }
+                }
+                else if (keyInfo.Key == ConsoleKey.LeftArrow)
+                {
+                    if (cursorPosition > 0)
+                    {
+                        cursorPosition--;
+                        Console.SetCursorPosition(cursorPosition, Console.CursorTop);
+                    }
+                }
+                else if (keyInfo.Key == ConsoleKey.RightArrow)
+                {
+                    if (cursorPosition < buffer.Length)
+                    {
+                        cursorPosition++;
+                        Console.SetCursorPosition(cursorPosition, Console.CursorTop);
+                    }
+                }
+                else if (keyInfo.Key == ConsoleKey.Home)
+                {
+                    cursorPosition = 0;
+                    Console.SetCursorPosition(cursorPosition, Console.CursorTop);
+                }
+                else if (keyInfo.Key == ConsoleKey.End)
+                {
+                    cursorPosition = buffer.Length;
+                    Console.SetCursorPosition(cursorPosition, Console.CursorTop);
+                }
+                else if (!char.IsControl(keyInfo.KeyChar))
+                {
+                    buffer.Insert(cursorPosition, keyInfo.KeyChar);
+                    cursorPosition++;
+                    Console.SetCursorPosition(0, Console.CursorTop);
+                    Console.Write(buffer.ToString() + " ");
+                    Console.SetCursorPosition(cursorPosition, Console.CursorTop);
+                }
+            }
         }
     }
 
-    internal class Note(string noteText)
+    internal class Note
     {
-        public string NoteText { get; set; } = noteText;
-        public DateTime Date { get; set; } = DateTime.Now;
+        public string NoteText { get; set; }
+        public DateTime Date { get; set; }
+
+        public Note(string noteText)
+        {
+            NoteText = noteText;
+            Date = DateTime.Now;
+        }
 
         public void UpdateNoteText(string newNoteText)
         {
