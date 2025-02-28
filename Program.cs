@@ -89,7 +89,9 @@ namespace NotifyNotes
                     commandParts = ["create", Console.ReadLine() ?? throw new ArgumentNullException(command)];
                 }
 
-                string noteText = commandParts[1];
+                string noteText = string.Join(' ', commandParts.Skip(1));
+                noteText = noteText.Replace(",", ", ").Replace(":", ": ").Replace(";", "; ");
+                noteText = noteText.Replace("\r\n\r\n", "\n\n").Replace("\n\n", "\n\n");
 
                 Random random = new();
                 int randomId = random.Next(100, 1000);
