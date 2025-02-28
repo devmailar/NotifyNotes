@@ -6,57 +6,95 @@ namespace NotifyNotes
     {
         static void Main()
         {
-            Dictionary<Guid, Note> notes = LoadNotesFromFile();
-
+            Dictionary<int, Note> notes = LoadNotesFromFile();
             while (true)
             {
+                Console.WriteLine("_  _ ____ ___ _ ____ _   _ _  _ ____ ___ ____ ____ ");
+                Console.WriteLine("|\\ | |  |  |  | |___  \\_/  |\\ | |  |  |  |___ [__  ");
+                Console.WriteLine("| \\| |__|  |  | |      |   | \\| |__|  |  |___ ___] ");
+                Console.WriteLine();
+                Console.WriteLine();
+
                 PrintNotes(notes);
-
                 Console.WriteLine();
                 Console.WriteLine();
-                Console.WriteLine("{0,-36} {1}", "Commands", "Description");
-                Console.WriteLine(new string('-', 60));
-                Console.WriteLine("{0,-36} {1}", ":create", "Creates new note");
-                Console.WriteLine("{0,-36} {1}", ":update", "Updates existing note");
-                Console.WriteLine("{0,-36} {1}", ":delete", "Deletes note");
-                Console.WriteLine(new string('-', 60));
-                Console.Write(":");
-                string? command = Console.ReadLine();
+                Console.WriteLine();
+                PrintCommands(notes);
+            }
+        }
 
-                if (command == null)
+        static void PrintNotes(Dictionary<int, Note> notes)
+        {
+            foreach (var note in notes)
+            {
+                string truncatedNote = note.Value.NoteText.Length > 30 ? string.Concat(note.Value.NoteText.AsSpan(0, 30), "...") : note.Value.NoteText;
+
+                Console.WriteLine("{0,-10} {1,-36} {2}", note.Key, truncatedNote, note.Value.Date);
+            }
+        }
+
+        static void PrintCommands(Dictionary<int, Note> notes)
+        {
+            Console.WriteLine("Controls");
+            Console.WriteLine(new string('-', 32));
+            Console.WriteLine(":create || Creates new note");
+            Console.WriteLine(":update || Updates existing note");
+            Console.WriteLine(":delete || Deletes note");
+            Console.WriteLine(new string('-', 32));
+            Console.Write(":");
+            string? command = Console.ReadLine();
+
+            if (command == "create")
+            {
+                Console.Write("Note: ");
+                string? newNote = Console.ReadLine() ?? throw new ArgumentNullException(command);
+
+                Random random = new();
+                int randomId = random.Next(100, 1000);
+
+                while (notes.ContainsKey(randomId))
                 {
-                    throw new ArgumentNullException(command);
+                    randomId = random.Next(100, 1000);
                 }
 
-                if (command == "create")
-                {
-                    Console.Write("Note: ");
-                    string? newNote = Console.ReadLine() ?? throw new ArgumentNullException(command);
+                notes.Add(randomId, new Note(newNote));
+                SaveNotesToFile(notes);
+                Console.Clear();
+            }
+            else if (command == "delete")
+            {
+                Console.Write("ID: ");
+                string? noteId = Console.ReadLine() ?? throw new ArgumentNullException(command);
 
-                    notes.Add(Guid.NewGuid(), new Note(newNote));
+                if (int.TryParse(noteId, out int id) && notes.ContainsKey(id))
+                {
+                    notes.Remove(id);
                     SaveNotesToFile(notes);
                     Console.Clear();
                 }
+                else
+                {
+                    Console.WriteLine("Invalid ID or note not found.");
+                    Console.Clear();
+                }
             }
-        }
-
-        static void PrintNotes(Dictionary<Guid, Note> notes)
-        {
-            Console.WriteLine("{0,-36} {1}", "Note", "Date");
-            Console.WriteLine(new string('-', 60));
-            foreach (var note in notes)
+            else if (command == "clear")
             {
-                Console.WriteLine("{0,-36} {1}", note.Value.NoteText, note.Value.Date);
+                Console.Clear();
+            }
+            else
+            {
+                Console.Clear();
             }
         }
 
-        static void SaveNotesToFile(Dictionary<Guid, Note> notes)
+        static void SaveNotesToFile(Dictionary<int, Note> notes)
         {
             string json = JsonSerializer.Serialize(notes, new JsonSerializerOptions { WriteIndented = true });
             File.WriteAllText("notes.json", json);
         }
 
-        static Dictionary<Guid, Note> LoadNotesFromFile()
+        static Dictionary<int, Note> LoadNotesFromFile()
         {
             if (!File.Exists("notes.json"))
             {
@@ -64,7 +102,7 @@ namespace NotifyNotes
             }
 
             string json = File.ReadAllText("notes.json");
-            return JsonSerializer.Deserialize<Dictionary<Guid, Note>>(json) ?? [];
+            return JsonSerializer.Deserialize<Dictionary<int, Note>>(json) ?? [];
         }
     }
 
