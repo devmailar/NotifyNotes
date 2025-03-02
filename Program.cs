@@ -28,11 +28,11 @@ namespace NotifyNotes
         #region methods
         static void PrintNotes(Dictionary<int, Note> notes)
         {
-            foreach (var note in notes.Values.OrderByDescending(note => note.Date))
+            foreach (var note in notes.OrderByDescending(note => note.Value.Date))
             {
-                string truncatedNote = note.Text.Length > 30 ? string.Concat(note.Text.AsSpan(0, 30), "...") : note.Text;
+                string truncatedNote = note.Value.Text.Length > 30 ? string.Concat(note.Value.Text.AsSpan(0, 30), "...") : note.Value.Text;
 
-                Console.WriteLine("[{0}] {1,-33} [{2}]", note.Id, truncatedNote, note.Date);
+                Console.WriteLine("[{0}] {1,-33} [{2}]", note.Key, truncatedNote, note.Value.Date);
             }
         }
 
@@ -105,7 +105,7 @@ namespace NotifyNotes
                     randomId = random.Next(100, 1000);
                 }
 
-                notes.Add(randomId, new Note { Id = randomId, Text = text });
+                notes.Add(randomId, new Note { Text = text });
                 SaveNotesToFile(notes);
                 Console.Clear();
             }
@@ -176,7 +176,7 @@ namespace NotifyNotes
 
         static void SaveNotesToFile(Dictionary<int, Note> notes)
         {
-            string json = JsonSerializer.Serialize(notes.Values.ToList());
+            string json = JsonSerializer.Serialize(notes);
             File.WriteAllText("notes.json", json);
         }
 
@@ -188,8 +188,7 @@ namespace NotifyNotes
             }
 
             string json = File.ReadAllText("notes.json");
-            var notesList = JsonSerializer.Deserialize<List<Note>>(json) ?? [];
-            return notesList.ToDictionary(note => note.Id);
+            return JsonSerializer.Deserialize<Dictionary<int, Note>>(json) ?? [];
         }
 
         static string? ReadLineWithDefault(string defaultText)
@@ -270,7 +269,6 @@ namespace NotifyNotes
 
     internal class Note
     {
-        public int Id { get; set; }
         public required string Text { get; set; }
         public DateTime Date { get; set; } = DateTime.Now;
 
