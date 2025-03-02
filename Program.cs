@@ -5,9 +5,10 @@ namespace NotifyNotes
 {
     internal class Program
     {
+        #region main
         static void Main()
         {
-            Dictionary<int, Note> notes = LoadNotesFromFile();
+            var notes = LoadNotesFromFile();
             bool isReading = false;
 
             while (!isReading)
@@ -22,14 +23,16 @@ namespace NotifyNotes
                 isReading = PrintCommands(notes);
             }
         }
+        #endregion
 
+        #region methods
         static void PrintNotes(Dictionary<int, Note> notes)
         {
-            foreach (var note in notes.OrderByDescending(note => note.Value.Date))
+            foreach (var note in notes.Values.OrderByDescending(note => note.Date))
             {
-                string truncatedNote = note.Value.NoteText.Length > 30 ? string.Concat(note.Value.NoteText.AsSpan(0, 30), "...") : note.Value.NoteText;
+                string truncatedNote = note.Text.Length > 30 ? string.Concat(note.Text.AsSpan(0, 30), "...") : note.Text;
 
-                Console.WriteLine("[{0}] {1,-33} [{2}]", note.Key, truncatedNote, note.Value.Date);
+                Console.WriteLine("[{0}] {1,-33} [{2}]", note.Id, truncatedNote, note.Date);
             }
         }
 
@@ -57,7 +60,7 @@ namespace NotifyNotes
                 if (commandParts.Length < 2)
                 {
                     Console.Write("ID: ");
-                    commandParts = new string[] { "read", Console.ReadLine() ?? throw new ArgumentNullException(command) };
+                    commandParts = ["read", Console.ReadLine() ?? throw new ArgumentNullException(command)];
                 }
 
                 string noteId = commandParts[1];
@@ -66,7 +69,7 @@ namespace NotifyNotes
                 {
                     Console.ForegroundColor = ConsoleColor.Green;
                     Console.Clear();
-                    Console.WriteLine($"{note.NoteText}");
+                    Console.WriteLine($"{note.Text}");
                     Console.WriteLine();
                     Console.WriteLine($"{note.Date}");
                     Console.WriteLine();
@@ -87,12 +90,12 @@ namespace NotifyNotes
                 if (commandParts.Length < 2)
                 {
                     Console.Write("Note: ");
-                    commandParts = new string[] { "create", Console.ReadLine() ?? throw new ArgumentNullException(command) };
+                    commandParts = ["create", Console.ReadLine() ?? throw new ArgumentNullException(command)];
                 }
 
-                string noteText = string.Join(' ', commandParts.Skip(1));
-                noteText = noteText.Replace(",", ", ").Replace(":", ": ").Replace(";", "; ");
-                noteText = noteText.Replace("\r\n\r\n", "\n\n").Replace("\n\n", "\n\n");
+                string text = string.Join(' ', commandParts.Skip(1));
+                text = text.Replace(",", ", ").Replace(":", ": ").Replace(";", "; ");
+                text = text.Replace("\r\n\r\n", "\n\n").Replace("\n\n", "\n\n");
 
                 Random random = new();
                 int randomId = random.Next(100, 1000);
@@ -102,7 +105,7 @@ namespace NotifyNotes
                     randomId = random.Next(100, 1000);
                 }
 
-                notes.Add(randomId, new Note(noteText));
+                notes.Add(randomId, new Note { Id = randomId, Text = text });
                 SaveNotesToFile(notes);
                 Console.Clear();
             }
@@ -111,7 +114,7 @@ namespace NotifyNotes
                 if (commandParts.Length < 2)
                 {
                     Console.Write("ID: ");
-                    commandParts = new string[] { "update", Console.ReadLine() ?? throw new ArgumentNullException(command) };
+                    commandParts = ["update", Console.ReadLine() ?? throw new ArgumentNullException(command)];
                 }
 
                 string noteId = commandParts[1];
@@ -120,13 +123,13 @@ namespace NotifyNotes
                 {
                     Console.ForegroundColor = ConsoleColor.Green;
                     Console.Clear();
-                    Console.WriteLine($"{note.NoteText}");
+                    Console.WriteLine($"{note.Text}");
                     Console.WriteLine();
                     Console.WriteLine($"{note.Date}");
                     Console.WriteLine();
                     Console.WriteLine("Enter new text for the note:");
                     Console.Write("> ");
-                    string newNoteText = ReadLineWithDefault(note.NoteText) ?? throw new ArgumentNullException("newNoteText");
+                    string newNoteText = ReadLineWithDefault(note.Text) ?? throw new ArgumentNullException("newNoteText");
                     note.UpdateNoteText(newNoteText);
                     SaveNotesToFile(notes);
                     Console.ResetColor();
@@ -143,14 +146,13 @@ namespace NotifyNotes
                 if (commandParts.Length < 2)
                 {
                     Console.Write("ID: ");
-                    commandParts = new string[] { "delete", Console.ReadLine() ?? throw new ArgumentNullException(command) };
+                    commandParts = ["delete", Console.ReadLine() ?? throw new ArgumentNullException(command)];
                 }
 
                 string noteId = commandParts[1];
 
-                if (int.TryParse(noteId, out int id) && notes.ContainsKey(id))
+                if (int.TryParse(noteId, out int id) && notes.Remove(id))
                 {
-                    notes.Remove(id);
                     SaveNotesToFile(notes);
                     Console.Clear();
                 }
@@ -174,7 +176,7 @@ namespace NotifyNotes
 
         static void SaveNotesToFile(Dictionary<int, Note> notes)
         {
-            string json = JsonSerializer.Serialize(notes, new JsonSerializerOptions { WriteIndented = true });
+            string json = JsonSerializer.Serialize(notes.Values.ToList());
             File.WriteAllText("notes.json", json);
         }
 
@@ -182,11 +184,12 @@ namespace NotifyNotes
         {
             if (!File.Exists("notes.json"))
             {
-                return new Dictionary<int, Note>();
+                return [];
             }
 
             string json = File.ReadAllText("notes.json");
-            return JsonSerializer.Deserialize<Dictionary<int, Note>>(json) ?? new Dictionary<int, Note>();
+            var notesList = JsonSerializer.Deserialize<List<Note>>(json) ?? [];
+            return notesList.ToDictionary(note => note.Id);
         }
 
         static string? ReadLineWithDefault(string defaultText)
@@ -261,22 +264,19 @@ namespace NotifyNotes
                 }
             }
         }
+
+        #endregion
     }
 
     internal class Note
     {
-        public string NoteText { get; set; }
-        public DateTime Date { get; set; }
+        public int Id { get; set; }
+        public required string Text { get; set; }
+        public DateTime Date { get; set; } = DateTime.Now;
 
-        public Note(string noteText)
+        public void UpdateNoteText(string newText)
         {
-            NoteText = noteText;
-            Date = DateTime.Now;
-        }
-
-        public void UpdateNoteText(string newNoteText)
-        {
-            NoteText = newNoteText;
+            Text = newText;
         }
     }
 }
